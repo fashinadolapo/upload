@@ -36,6 +36,7 @@ const initialForm: FormState = {
 
 const S3_PUBLIC_BASE_URL =
   "https://upload-353833416626-eu-central-1-an.s3.eu-central-1.amazonaws.com";
+const DEFAULT_CDN_BASE_URL = "";
 
 const colors = {
   wine: "#6b0f1a",
@@ -58,12 +59,22 @@ function formatBytes(bytes: number) {
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[i]}`;
 }
 
+function buildReadableFileUrl(baseUrl: string, filename: string) {
+  const trimmedBaseUrl = baseUrl.trim();
+  if (!trimmedBaseUrl) return undefined;
+
+  return `${trimmedBaseUrl.replace(/\/$/, "")}/${encodeURIComponent(filename)}`;
+}
+
 export default function App() {
   const [activePage, setActivePage] = useState<"upload" | "gallery">("upload");
   const [galleryTab, setGalleryTab] = useState<"photos" | "videos" | "downloads">("photos");
   const [form, setForm] = useState<FormState>(initialForm);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [cdnBase, setCdnBase] = useState(S3_PUBLIC_BASE_URL);
+  const [uploadMode, setUploadMode] = useState<UploadMode>("demo");
+  const [uploadEndpoint, setUploadEndpoint] = useState("");
+  const [cdnBase, setCdnBase] = useState(DEFAULT_CDN_BASE_URL);
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Ready for your love notes and memories.");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -121,10 +132,7 @@ export default function App() {
         ...att,
         status: "done",
         progress: 100,
-        url:
-          cdnBase.trim() !== ""
-            ? `${cdnBase.replace(/\/$/, "")}/${att.file.name}`
-            : `https://demo-bucket.example/${att.file.name}`,
+        url: buildReadableFileUrl(cdnBase, att.file.name) || att.preview,
       }));
       return;
     }
@@ -167,17 +175,16 @@ export default function App() {
         if (!uploadRes.ok) throw new Error(`Upload failed (${uploadRes.status})`);
       }
 
-      const publicUrl =
-        data.fileUrl ||
-        (cdnBase.trim()
-          ? `${cdnBase.replace(/\/$/, "")}/${attachment.file.name}`
-          : data.uploadUrl?.split("?")[0]);
+      const publicUrl = data.fileUrl || buildReadableFileUrl(cdnBase, attachment.file.name);
 
       updateAttachment(attachment.id, (att) => ({
         ...att,
         status: "done",
         progress: 100,
         url: publicUrl,
+        error: publicUrl
+          ? undefined
+          : "Upload succeeded, but no readable file URL was returned. Return a signed GET URL as fileUrl, or configure a public CDN/base URL with bucket read permissions.",
       }));
     } catch (error) {
       console.error(error);
@@ -281,6 +288,109 @@ export default function App() {
                 >
                   View gallery & downloads
                 </button>
+              <div className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-xl shadow-black/30">
+                <div className="flex items-center justify-between text-white/80">
+                  <p className="text-xs uppercase tracking-[0.2em] text-[#f5e6c8]">Share it</p>
+                  <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-slate-900 shadow">QR ready</span>
+                </div>
+                <div className="mt-3 flex items-center gap-4">
+                  <div className="rounded-2xl border border-white/25 bg-white/80 p-3 shadow-lg">
+                    <QRCodeCanvas value={shareUrl} size={112} bgColor="#ffffff" fgColor={colors.deepWine} />
+                  </div>
+                  <div className="flex-1 space-y-3 text-white/90">
+                    <div>
+                      <p className="text-sm font-semibold text-white">Scan to open this exact form</p>
+                      <p className="text-xs text-white/75">Guests scan the QR at your venue and land right here.</p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <input
+                        value={shareUrl}
+                        onChange={(e) => setShareUrl(e.target.value)}
+                        className="w-full rounded-xl border border-white/20 bg-white/80 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-[#d4af37] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30"
+                        placeholder={AMPLIFY_APP_URL}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(shareUrl);
+                            setStatusMessage("Link copied. Ready to share.");
+                          }}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-[1px]"
+                          style={{ background: colors.wine }}
+                        >
+                          <span>Copy link</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShareUrl(window.location.href)}
+                          className="rounded-xl border border-white/30 bg-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-[#d4af37]/60"
+                        >
+                          Use current page
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-xl shadow-black/30 text-white/90">
+                <p className="text-xs uppercase tracking-[0.2em] text-[#f5e6c8]">Upload strategy</p>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-sm font-medium">
+                  <button
+                    type="button"
+                    onClick={() => setUploadMode("demo")}
+                    className={`rounded-2xl border px-3 py-3 text-left shadow-sm transition ${uploadMode === "demo" ? "border-[#d4af37] bg-white/80 text-slate-900" : "border-white/30 bg-white/10 text-white"}`}
+                  >
+                    <p>Demo / offline safe</p>
+                    <p className="text-xs opacity-80">Simulated uploads with preview</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUploadMode("presigned")}
+                    className={`rounded-2xl border px-3 py-3 text-left shadow-sm transition ${uploadMode === "presigned" ? "border-[#d4af37] bg-white/80 text-slate-900" : "border-white/30 bg-white/10 text-white"}`}
+                  >
+                    <p>Use pre-signed URL</p>
+                    <p className="text-xs opacity-80">Connect to S3 / R2 / Wasabi</p>
+                  </button>
+                </div>
+                <div className="mt-3 space-y-2 text-sm">
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs font-semibold text-[#f5e6c8]">Presign endpoint</span>
+                    <input
+                      value={uploadEndpoint}
+                      onChange={(e) => setUploadEndpoint(e.target.value)}
+                      placeholder="https://api.yourdomain.com/presign"
+                      className="rounded-xl border border-white/20 bg-white/80 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-[#d4af37] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs font-semibold text-[#f5e6c8]">Public CDN/base URL (optional)</span>
+                    <input
+                      value={cdnBase}
+                      onChange={(e) => setCdnBase(e.target.value)}
+                      placeholder={`${S3_PUBLIC_BASE_URL} (only if objects are public)`}
+                      className="rounded-xl border border-white/20 bg-white/80 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-[#d4af37] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30"
+                    />
+                  </label>
+                  <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-white/80">
+                    <p className="font-semibold text-[#f5e6c8]">Expected API (pre-sign)</p>
+                    <p>POST {'{'} filename, contentType, size {'}'} → {'{'} uploadUrl, fileUrl?, fields? {'}'}</p>
+                    <p className="mt-1 text-white/70">If fields are returned, a POST with form-data is used. Otherwise a PUT is used. Return a readable <code className="rounded bg-white/20 px-1">fileUrl</code> (for example a signed GET URL), or enter a public CDN/base URL only when objects are publicly readable.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-xl shadow-black/30 text-white/90">
+                <p className="text-xs uppercase tracking-[0.2em] text-[#f5e6c8]">Amplify hosting quick start</p>
+                <ol className="mt-3 space-y-2 text-sm text-white/80 list-decimal list-inside">
+                  <li>Push this repo to GitHub.</li>
+                  <li>Open AWS Amplify → New app → Host web app → connect your repo.</li>
+                  <li>Build command: <code className="rounded bg-white/20 px-1">npm ci && npm run build</code></li>
+                  <li>Output dir: <code className="rounded bg-white/20 px-1">dist</code></li>
+                  <li>Production URL: <code className="rounded bg-white/20 px-1">{AMPLIFY_APP_URL}</code></li>
+                  <li>For private S3 buckets, your presign API must return a signed GET <code className="rounded bg-white/20 px-1">fileUrl</code> for viewing.</li>
+                </ol>
               </div>
             </aside>
 
