@@ -13,7 +13,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "aws-cdk-lib": "^2.260.0",
     "clsx": "2.1.1",
+    "constructs": "^10.6.0",
     "qrcode.react": "^4.2.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
@@ -28,10 +30,13 @@
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.1.4",
-    "aws-cdk-lib": "^2.260.0",
     "tailwindcss": "4.3.1",
     "typescript": "6.0.3",
     "vite": "7.3.5",
     "vite-plugin-singlefile": "2.3.3"
+  },
+  "overrides": {
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3"
   }
 }
