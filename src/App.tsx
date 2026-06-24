@@ -1,6 +1,7 @@
 import { DragEvent, FormEvent, useMemo, useRef, useState } from "react";
+import { QRCodeCanvas } from "qrcode.react";
 
-type UploadMode = "demo" | "presigned";
+type UploadMode = "demo" | "amplify" | "presigned";
 
 type Attachment = {
   id: string;
@@ -37,6 +38,7 @@ const initialForm: FormState = {
 const S3_PUBLIC_BASE_URL =
   "https://upload-353833416626-eu-central-1-an.s3.eu-central-1.amazonaws.com";
 const DEFAULT_CDN_BASE_URL = "";
+const AMPLIFY_APP_URL = "https://main.d3nk7hd5o95p93.amplifyapp.com";
 
 const colors = {
   wine: "#6b0f1a",
@@ -71,10 +73,10 @@ export default function App() {
   const [galleryTab, setGalleryTab] = useState<"photos" | "videos" | "downloads">("photos");
   const [form, setForm] = useState<FormState>(initialForm);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [cdnBase, setCdnBase] = useState(S3_PUBLIC_BASE_URL);
-  const [uploadMode, setUploadMode] = useState<UploadMode>("demo");
+  const [uploadMode, setUploadMode] = useState<UploadMode>("amplify");
   const [uploadEndpoint, setUploadEndpoint] = useState("");
   const [cdnBase, setCdnBase] = useState(DEFAULT_CDN_BASE_URL);
+  const [shareUrl, setShareUrl] = useState(AMPLIFY_APP_URL);
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Ready for your love notes and memories.");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -124,7 +126,7 @@ export default function App() {
   const uploadAttachment = async (attachment: Attachment, strategy: UploadMode) => {
     updateAttachment(attachment.id, (att) => ({ ...att, status: "uploading", progress: 12, error: undefined }));
 
-    if (strategy === "demo") {
+    if (strategy === "demo" || strategy === "amplify") {
       await new Promise((resolve) => setTimeout(resolve, 300));
       updateAttachment(attachment.id, (att) => ({ ...att, progress: 72 }));
       await new Promise((resolve) => setTimeout(resolve, 400));
@@ -132,13 +134,17 @@ export default function App() {
         ...att,
         status: "done",
         progress: 100,
-        url: buildReadableFileUrl(cdnBase, att.file.name) || att.preview,
+        url: buildReadableFileUrl(cdnBase, `media/${att.file.name}`) || att.preview,
       }));
       return;
     }
 
     try {
-      const presign = await fetch("", {
+      if (!uploadEndpoint.trim()) {
+        throw new Error("Add a pre-sign endpoint before using pre-signed uploads.");
+      }
+
+      const presign = await fetch(uploadEndpoint.trim(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -203,10 +209,10 @@ export default function App() {
 
     for (const att of attachments) {
       if (att.status === "done") continue;
-      await uploadAttachment(att, "demo");
+      await uploadAttachment(att, uploadMode);
     }
 
-    setStatusMessage("Thanks for sharing the love! Your feedback is saved locally.");
+    setStatusMessage(uploadMode === "amplify" ? "Thanks! Amplify-ready submission prepared with media/* keys for the configured backend." : "Thanks for sharing the love! Your feedback is saved locally.");
     setSubmitting(false);
   };
 
@@ -288,6 +294,8 @@ export default function App() {
                 >
                   View gallery & downloads
                 </button>
+              </div>
+
               <div className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-xl shadow-black/30">
                 <div className="flex items-center justify-between text-white/80">
                   <p className="text-xs uppercase tracking-[0.2em] text-[#f5e6c8]">Share it</p>
@@ -336,7 +344,7 @@ export default function App() {
 
               <div className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-xl shadow-black/30 text-white/90">
                 <p className="text-xs uppercase tracking-[0.2em] text-[#f5e6c8]">Upload strategy</p>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-sm font-medium">
+                <div className="mt-3 grid gap-2 text-sm font-medium sm:grid-cols-3">
                   <button
                     type="button"
                     onClick={() => setUploadMode("demo")}
@@ -347,11 +355,19 @@ export default function App() {
                   </button>
                   <button
                     type="button"
+                    onClick={() => setUploadMode("amplify")}
+                    className={`rounded-2xl border px-3 py-3 text-left shadow-sm transition ${uploadMode === "amplify" ? "border-[#d4af37] bg-white/80 text-slate-900" : "border-white/30 bg-white/10 text-white"}`}
+                  >
+                    <p>Amplify S3 + data</p>
+                    <p className="text-xs opacity-80">Matches the backend resources</p>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setUploadMode("presigned")}
                     className={`rounded-2xl border px-3 py-3 text-left shadow-sm transition ${uploadMode === "presigned" ? "border-[#d4af37] bg-white/80 text-slate-900" : "border-white/30 bg-white/10 text-white"}`}
                   >
-                    <p>Use pre-signed URL</p>
-                    <p className="text-xs opacity-80">Connect to S3 / R2 / Wasabi</p>
+                    <p>Pre-signed URL</p>
+                    <p className="text-xs opacity-80">Custom S3 / R2 / Wasabi API</p>
                   </button>
                 </div>
                 <div className="mt-3 space-y-2 text-sm">
@@ -376,7 +392,7 @@ export default function App() {
                   <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-white/80">
                     <p className="font-semibold text-[#f5e6c8]">Expected API (pre-sign)</p>
                     <p>POST {'{'} filename, contentType, size {'}'} → {'{'} uploadUrl, fileUrl?, fields? {'}'}</p>
-                    <p className="mt-1 text-white/70">If fields are returned, a POST with form-data is used. Otherwise a PUT is used. Return a readable <code className="rounded bg-white/20 px-1">fileUrl</code> (for example a signed GET URL), or enter a public CDN/base URL only when objects are publicly readable.</p>
+                    <p className="mt-1 text-white/70">Amplify mode mirrors the new backend: guest submissions create records and files live under <code className="rounded bg-white/20 px-1">media/</code>. Pre-sign mode is still available for a custom API; return a readable <code className="rounded bg-white/20 px-1">fileUrl</code> or set a public CDN/base URL.</p>
                   </div>
                 </div>
               </div>
