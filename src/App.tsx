@@ -1,5 +1,4 @@
-import { DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { QRCodeCanvas } from "qrcode.react";
+import { DragEvent, FormEvent, useMemo, useRef, useState } from "react";
 
 type UploadMode = "demo" | "presigned";
 
@@ -35,7 +34,6 @@ const initialForm: FormState = {
   suggestions: "",
 };
 
-const AMPLIFY_APP_URL = "https://main.d3dxsghczx43vp.amplifyapp.com";
 const S3_PUBLIC_BASE_URL =
   "https://upload-353833416626-eu-central-1-an.s3.eu-central-1.amazonaws.com";
 const DEFAULT_CDN_BASE_URL = "";
@@ -69,21 +67,17 @@ function buildReadableFileUrl(baseUrl: string, filename: string) {
 }
 
 export default function App() {
-  const [shareUrl, setShareUrl] = useState(AMPLIFY_APP_URL);
+  const [activePage, setActivePage] = useState<"upload" | "gallery">("upload");
+  const [galleryTab, setGalleryTab] = useState<"photos" | "videos" | "downloads">("photos");
   const [form, setForm] = useState<FormState>(initialForm);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [cdnBase, setCdnBase] = useState(S3_PUBLIC_BASE_URL);
   const [uploadMode, setUploadMode] = useState<UploadMode>("demo");
   const [uploadEndpoint, setUploadEndpoint] = useState("");
   const [cdnBase, setCdnBase] = useState(DEFAULT_CDN_BASE_URL);
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Ready for your love notes and memories.");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setShareUrl(window.location.origin.includes("amplifyapp.com") ? window.location.href : AMPLIFY_APP_URL);
-    }
-  }, []);
 
   const stats = useMemo(() => {
     const totalBytes = attachments.reduce((sum, a) => sum + a.file.size, 0);
@@ -92,9 +86,6 @@ export default function App() {
     const done = attachments.filter((a) => a.status === "done").length;
     return { totalBytes, imageCount, videoCount, done };
   }, [attachments]);
-
-  const uploadStrategy: UploadMode =
-    uploadMode === "presigned" && uploadEndpoint ? "presigned" : "demo";
 
   const handleFieldChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -147,7 +138,7 @@ export default function App() {
     }
 
     try {
-      const presign = await fetch(uploadEndpoint, {
+      const presign = await fetch("", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -212,7 +203,7 @@ export default function App() {
 
     for (const att of attachments) {
       if (att.status === "done") continue;
-      await uploadAttachment(att, uploadStrategy);
+      await uploadAttachment(att, "demo");
     }
 
     setStatusMessage("Thanks for sharing the love! Your feedback is saved locally.");
@@ -237,9 +228,10 @@ export default function App() {
     <div
       className="min-h-screen bg-slate-900 text-white"
       style={{
-        backgroundImage: "linear-gradient(135deg, rgba(75,12,20,0.85), rgba(26,23,23,0.75)), url('/images/wedding-bg.jpg')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
+        backgroundImage: "linear-gradient(135deg, rgba(75,12,20,0.88), rgba(26,23,23,0.78)), url('/images/wedding-logo.svg'), url('/images/wedding-bg.jpg')",
+        backgroundSize: "cover, min(70vw, 760px), cover",
+        backgroundPosition: "center, center 7rem, center",
+        backgroundRepeat: "no-repeat",
       }}
     >
       <div className="backdrop-blur-[2px] px-4 py-10">
@@ -259,6 +251,10 @@ export default function App() {
                   <p className="text-xs uppercase tracking-[0.2em] text-[#f5e6c8]">Wedding Memory Box</p>
                   <h1 className="text-3xl font-semibold text-white">Feedback & Memory Upload Portal</h1>
                   <p className="text-sm text-white/70">Wine + champagne gold palette · QR-friendly · Unlimited uploads</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => setActivePage("upload")} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${activePage === "upload" ? "bg-white text-[#6b0f1a]" : "bg-white/15 text-white hover:bg-white/25"}`}>Landing page</button>
+                    <button type="button" onClick={() => setActivePage("gallery")} className={`rounded-full px-4 py-2 text-sm font-semibold transition ${activePage === "gallery" ? "bg-white text-[#6b0f1a]" : "bg-white/15 text-white hover:bg-white/25"}`}>Uploads & downloads</button>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-3 text-slate-900">
@@ -278,8 +274,20 @@ export default function App() {
             </div>
           </header>
 
+          {activePage === "upload" ? (
           <div className="grid gap-6 lg:grid-cols-[1fr,1.2fr]">
             <aside className="flex flex-col gap-4">
+              <div className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-xl shadow-black/30 text-white/90">
+                <p className="text-xs uppercase tracking-[0.2em] text-[#f5e6c8]">Gallery</p>
+                <h2 className="mt-3 text-2xl font-semibold text-white">See uploaded photos and videos</h2>
+                <p className="mt-2 text-sm text-white/75">Open the gallery page to preview selected memories and use the downloads tab for file links.</p>
+                <button
+                  type="button"
+                  onClick={() => setActivePage("gallery")}
+                  className="mt-4 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-[#6b0f1a] shadow transition hover:-translate-y-[1px]"
+                >
+                  View gallery & downloads
+                </button>
               <div className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-xl shadow-black/30">
                 <div className="flex items-center justify-between text-white/80">
                   <p className="text-xs uppercase tracking-[0.2em] text-[#f5e6c8]">Share it</p>
@@ -626,6 +634,45 @@ export default function App() {
               </form>
             </main>
           </div>
+          ) : (
+            <main className="rounded-3xl border border-white/15 bg-white/90 p-6 text-slate-900 shadow-2xl shadow-black/40">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-[#6b0f1a]">Uploaded memories</p>
+                  <h2 className="text-3xl font-semibold text-slate-900">Photos, videos & downloads</h2>
+                </div>
+                <button type="button" onClick={() => setActivePage("upload")} className="rounded-xl bg-[#6b0f1a] px-4 py-2 text-sm font-semibold text-white shadow">Back to upload</button>
+              </div>
+              <div className="mt-6 flex flex-wrap gap-2">
+                {(["photos", "videos", "downloads"] as const).map((tab) => (
+                  <button key={tab} type="button" onClick={() => setGalleryTab(tab)} className={`rounded-full px-4 py-2 text-sm font-semibold capitalize ${galleryTab === tab ? "bg-[#6b0f1a] text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>{tab}</button>
+                ))}
+              </div>
+              <div className="mt-6">
+                {galleryTab !== "downloads" ? (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {attachments.filter((att) => galleryTab === "photos" ? att.file.type.startsWith("image") : att.file.type.startsWith("video")).map((att) => (
+                      <article key={att.id} className="overflow-hidden rounded-2xl bg-white shadow ring-1 ring-slate-100">
+                        {att.file.type.startsWith("image") ? <img src={att.preview} alt={att.file.name} className="h-56 w-full object-cover" /> : <video src={att.preview} controls className="h-56 w-full bg-black object-contain" />}
+                        <div className="p-3"><p className="truncate text-sm font-semibold text-slate-800">{att.file.name}</p><p className="text-xs text-slate-500">{formatBytes(att.file.size)} · {att.status}</p></div>
+                      </article>
+                    ))}
+                    {attachments.filter((att) => galleryTab === "photos" ? att.file.type.startsWith("image") : att.file.type.startsWith("video")).length === 0 && <p className="rounded-2xl bg-white p-5 text-sm text-slate-600 shadow">No {galleryTab} selected yet. Add files from the landing page.</p>}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {attachments.map((att) => (
+                      <a key={att.id} href={att.url || att.preview} download={att.file.name} className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 text-sm shadow ring-1 ring-slate-100 hover:ring-[#d4af37]">
+                        <span><strong className="text-slate-900">{att.file.name}</strong><br /><span className="text-xs text-slate-500">{formatBytes(att.file.size)} · {att.file.type || "file"}</span></span>
+                        <span className="rounded-full bg-[#f5e6c8] px-3 py-1 font-semibold text-[#6b0f1a]">Download</span>
+                      </a>
+                    ))}
+                    {attachments.length === 0 && <p className="rounded-2xl bg-white p-5 text-sm text-slate-600 shadow">No downloads yet. Add files from the landing page.</p>}
+                  </div>
+                )}
+              </div>
+            </main>
+          )}
         </div>
       </div>
     </div>
