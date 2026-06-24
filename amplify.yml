@@ -3,15 +3,13 @@ backend:
   phases:
     build:
       commands:
-        # Added --legacy-peer-deps flag here
-        - npm install
+        - npm install --legacy-peer-deps
         - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
 frontend:
   phases:
     preBuild:
       commands:
-        # And added --legacy-peer-deps flag here
-        - npm install 
+        - npm install --legacy-peer-deps
     build:
       commands:
         - npm run build 
