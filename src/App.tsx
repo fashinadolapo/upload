@@ -38,6 +38,7 @@ const initialForm: FormState = {
 const AMPLIFY_APP_URL = "https://main.d3dxsghczx43vp.amplifyapp.com";
 const S3_PUBLIC_BASE_URL =
   "https://upload-353833416626-eu-central-1-an.s3.eu-central-1.amazonaws.com";
+const DEFAULT_CDN_BASE_URL = "";
 
 const colors = {
   wine: "#6b0f1a",
@@ -60,13 +61,20 @@ function formatBytes(bytes: number) {
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[i]}`;
 }
 
+function buildReadableFileUrl(baseUrl: string, filename: string) {
+  const trimmedBaseUrl = baseUrl.trim();
+  if (!trimmedBaseUrl) return undefined;
+
+  return `${trimmedBaseUrl.replace(/\/$/, "")}/${encodeURIComponent(filename)}`;
+}
+
 export default function App() {
   const [shareUrl, setShareUrl] = useState(AMPLIFY_APP_URL);
   const [form, setForm] = useState<FormState>(initialForm);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadMode, setUploadMode] = useState<UploadMode>("demo");
   const [uploadEndpoint, setUploadEndpoint] = useState("");
-  const [cdnBase, setCdnBase] = useState(S3_PUBLIC_BASE_URL);
+  const [cdnBase, setCdnBase] = useState(DEFAULT_CDN_BASE_URL);
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Ready for your love notes and memories.");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -133,10 +141,7 @@ export default function App() {
         ...att,
         status: "done",
         progress: 100,
-        url:
-          cdnBase.trim() !== ""
-            ? `${cdnBase.replace(/\/$/, "")}/${att.file.name}`
-            : `https://demo-bucket.example/${att.file.name}`,
+        url: buildReadableFileUrl(cdnBase, att.file.name) || att.preview,
       }));
       return;
     }
@@ -179,17 +184,16 @@ export default function App() {
         if (!uploadRes.ok) throw new Error(`Upload failed (${uploadRes.status})`);
       }
 
-      const publicUrl =
-        data.fileUrl ||
-        (cdnBase.trim()
-          ? `${cdnBase.replace(/\/$/, "")}/${attachment.file.name}`
-          : data.uploadUrl?.split("?")[0]);
+      const publicUrl = data.fileUrl || buildReadableFileUrl(cdnBase, attachment.file.name);
 
       updateAttachment(attachment.id, (att) => ({
         ...att,
         status: "done",
         progress: 100,
         url: publicUrl,
+        error: publicUrl
+          ? undefined
+          : "Upload succeeded, but no readable file URL was returned. Return a signed GET URL as fileUrl, or configure a public CDN/base URL with bucket read permissions.",
       }));
     } catch (error) {
       console.error(error);
@@ -357,14 +361,14 @@ export default function App() {
                     <input
                       value={cdnBase}
                       onChange={(e) => setCdnBase(e.target.value)}
-                      placeholder={S3_PUBLIC_BASE_URL}
+                      placeholder={`${S3_PUBLIC_BASE_URL} (only if objects are public)`}
                       className="rounded-xl border border-white/20 bg-white/80 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-[#d4af37] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30"
                     />
                   </label>
                   <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-white/80">
                     <p className="font-semibold text-[#f5e6c8]">Expected API (pre-sign)</p>
                     <p>POST {'{'} filename, contentType, size {'}'} → {'{'} uploadUrl, fileUrl?, fields? {'}'}</p>
-                    <p className="mt-1 text-white/70">If fields are returned, a POST with form-data is used. Otherwise a PUT is used. The S3 base above is used for generated file links.</p>
+                    <p className="mt-1 text-white/70">If fields are returned, a POST with form-data is used. Otherwise a PUT is used. Return a readable <code className="rounded bg-white/20 px-1">fileUrl</code> (for example a signed GET URL), or enter a public CDN/base URL only when objects are publicly readable.</p>
                   </div>
                 </div>
               </div>
@@ -377,7 +381,7 @@ export default function App() {
                   <li>Build command: <code className="rounded bg-white/20 px-1">npm ci && npm run build</code></li>
                   <li>Output dir: <code className="rounded bg-white/20 px-1">dist</code></li>
                   <li>Production URL: <code className="rounded bg-white/20 px-1">{AMPLIFY_APP_URL}</code></li>
-                  <li>S3 public base URL: <code className="rounded bg-white/20 px-1 break-all">{S3_PUBLIC_BASE_URL}</code></li>
+                  <li>For private S3 buckets, your presign API must return a signed GET <code className="rounded bg-white/20 px-1">fileUrl</code> for viewing.</li>
                 </ol>
               </div>
             </aside>
