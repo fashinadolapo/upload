@@ -35,6 +35,10 @@ const initialForm: FormState = {
   suggestions: "",
 };
 
+const AMPLIFY_APP_URL = "https://main.d3dxsghczx43vp.amplifyapp.com";
+const S3_PUBLIC_BASE_URL =
+  "https://upload-353833416626-eu-central-1-an.s3.eu-central-1.amazonaws.com";
+
 const colors = {
   wine: "#6b0f1a",
   deepWine: "#4b0c14",
@@ -57,19 +61,19 @@ function formatBytes(bytes: number) {
 }
 
 export default function App() {
-  const [shareUrl, setShareUrl] = useState("https://your-wedding-form.com");
+  const [shareUrl, setShareUrl] = useState(AMPLIFY_APP_URL);
   const [form, setForm] = useState<FormState>(initialForm);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploadMode, setUploadMode] = useState<UploadMode>("demo");
   const [uploadEndpoint, setUploadEndpoint] = useState("");
-  const [cdnBase, setCdnBase] = useState("");
+  const [cdnBase, setCdnBase] = useState(S3_PUBLIC_BASE_URL);
   const [submitting, setSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Ready for your love notes and memories.");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setShareUrl(window.location.href);
+      setShareUrl(window.location.origin.includes("amplifyapp.com") ? window.location.href : AMPLIFY_APP_URL);
     }
   }, []);
 
@@ -291,7 +295,7 @@ export default function App() {
                         value={shareUrl}
                         onChange={(e) => setShareUrl(e.target.value)}
                         className="w-full rounded-xl border border-white/20 bg-white/80 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-[#d4af37] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30"
-                        placeholder="https://your-amplify-domain.com"
+                        placeholder={AMPLIFY_APP_URL}
                       />
                       <div className="flex gap-2">
                         <button
@@ -353,14 +357,14 @@ export default function App() {
                     <input
                       value={cdnBase}
                       onChange={(e) => setCdnBase(e.target.value)}
-                      placeholder="https://cdn.yourdomain.com/wedding"
+                      placeholder={S3_PUBLIC_BASE_URL}
                       className="rounded-xl border border-white/20 bg-white/80 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-[#d4af37] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30"
                     />
                   </label>
                   <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-white/80">
                     <p className="font-semibold text-[#f5e6c8]">Expected API (pre-sign)</p>
                     <p>POST {'{'} filename, contentType, size {'}'} → {'{'} uploadUrl, fileUrl?, fields? {'}'}</p>
-                    <p className="mt-1 text-white/70">If fields are returned, a POST with form-data is used. Otherwise a PUT is used.</p>
+                    <p className="mt-1 text-white/70">If fields are returned, a POST with form-data is used. Otherwise a PUT is used. The S3 base above is used for generated file links.</p>
                   </div>
                 </div>
               </div>
@@ -372,7 +376,8 @@ export default function App() {
                   <li>Open AWS Amplify → New app → Host web app → connect your repo.</li>
                   <li>Build command: <code className="rounded bg-white/20 px-1">npm ci && npm run build</code></li>
                   <li>Output dir: <code className="rounded bg-white/20 px-1">dist</code></li>
-                  <li>After deploy, use the Amplify domain in the QR field above.</li>
+                  <li>Production URL: <code className="rounded bg-white/20 px-1">{AMPLIFY_APP_URL}</code></li>
+                  <li>S3 public base URL: <code className="rounded bg-white/20 px-1 break-all">{S3_PUBLIC_BASE_URL}</code></li>
                 </ol>
               </div>
             </aside>
