@@ -35,8 +35,7 @@ const initialForm: FormState = {
   suggestions: "",
 };
 
-const S3_PUBLIC_BASE_URL =
-  "https://upload-353833416626-eu-central-1-an.s3.eu-central-1.amazonaws.com";
+const S3_PUBLIC_BASE_URL = "https://upload-353833416626-eu-central-1-an.s3.eu-central-1.amazonaws.com";
 const DEFAULT_CDN_BASE_URL = "";
 const AMPLIFY_APP_URL = "https://main.d3nk7hd5o95p93.amplifyapp.com";
 
@@ -295,120 +294,8 @@ export default function App() {
                   View gallery & downloads
                 </button>
               </div>
-
-              <div className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-xl shadow-black/30">
-                <div className="flex items-center justify-between text-white/80">
-                  <p className="text-xs uppercase tracking-[0.2em] text-[#f5e6c8]">Share it</p>
-                  <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold text-slate-900 shadow">QR ready</span>
-                </div>
-                <div className="mt-3 flex items-center gap-4">
-                  <div className="rounded-2xl border border-white/25 bg-white/80 p-3 shadow-lg">
-                    <QRCodeCanvas value={shareUrl} size={112} bgColor="#ffffff" fgColor={colors.deepWine} />
-                  </div>
-                  <div className="flex-1 space-y-3 text-white/90">
-                    <div>
-                      <p className="text-sm font-semibold text-white">Scan to open this exact form</p>
-                      <p className="text-xs text-white/75">Guests scan the QR at your venue and land right here.</p>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <input
-                        value={shareUrl}
-                        onChange={(e) => setShareUrl(e.target.value)}
-                        className="w-full rounded-xl border border-white/20 bg-white/80 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-[#d4af37] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30"
-                        placeholder={AMPLIFY_APP_URL}
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(shareUrl);
-                            setStatusMessage("Link copied. Ready to share.");
-                          }}
-                          className="inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-[1px]"
-                          style={{ background: colors.wine }}
-                        >
-                          <span>Copy link</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShareUrl(window.location.href)}
-                          className="rounded-xl border border-white/30 bg-white/20 px-3 py-2 text-sm font-semibold text-white hover:border-[#d4af37]/60"
-                        >
-                          Use current page
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-xl shadow-black/30 text-white/90">
-                <p className="text-xs uppercase tracking-[0.2em] text-[#f5e6c8]">Upload strategy</p>
-                <div className="mt-3 grid gap-2 text-sm font-medium sm:grid-cols-3">
-                  <button
-                    type="button"
-                    onClick={() => setUploadMode("demo")}
-                    className={`rounded-2xl border px-3 py-3 text-left shadow-sm transition ${uploadMode === "demo" ? "border-[#d4af37] bg-white/80 text-slate-900" : "border-white/30 bg-white/10 text-white"}`}
-                  >
-                    <p>Demo / offline safe</p>
-                    <p className="text-xs opacity-80">Simulated uploads with preview</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUploadMode("amplify")}
-                    className={`rounded-2xl border px-3 py-3 text-left shadow-sm transition ${uploadMode === "amplify" ? "border-[#d4af37] bg-white/80 text-slate-900" : "border-white/30 bg-white/10 text-white"}`}
-                  >
-                    <p>Amplify S3 + data</p>
-                    <p className="text-xs opacity-80">Matches the backend resources</p>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUploadMode("presigned")}
-                    className={`rounded-2xl border px-3 py-3 text-left shadow-sm transition ${uploadMode === "presigned" ? "border-[#d4af37] bg-white/80 text-slate-900" : "border-white/30 bg-white/10 text-white"}`}
-                  >
-                    <p>Pre-signed URL</p>
-                    <p className="text-xs opacity-80">Custom S3 / R2 / Wasabi API</p>
-                  </button>
-                </div>
-                <div className="mt-3 space-y-2 text-sm">
-                  <label className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-[#f5e6c8]">Presign endpoint</span>
-                    <input
-                      value={uploadEndpoint}
-                      onChange={(e) => setUploadEndpoint(e.target.value)}
-                      placeholder="https://api.yourdomain.com/presign"
-                      className="rounded-xl border border-white/20 bg-white/80 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-[#d4af37] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-[#f5e6c8]">Public CDN/base URL (optional)</span>
-                    <input
-                      value={cdnBase}
-                      onChange={(e) => setCdnBase(e.target.value)}
-                      placeholder={`${S3_PUBLIC_BASE_URL} (only if objects are public)`}
-                      className="rounded-xl border border-white/20 bg-white/80 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-[#d4af37] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30"
-                    />
-                  </label>
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-white/80">
-                    <p className="font-semibold text-[#f5e6c8]">Expected API (pre-sign)</p>
-                    <p>POST {'{'} filename, contentType, size {'}'} → {'{'} uploadUrl, fileUrl?, fields? {'}'}</p>
-                    <p className="mt-1 text-white/70">Amplify mode mirrors the new backend: guest submissions create records and files live under <code className="rounded bg-white/20 px-1">media/</code>. Pre-sign mode is still available for a custom API; return a readable <code className="rounded bg-white/20 px-1">fileUrl</code> or set a public CDN/base URL.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-white/15 bg-white/10 p-5 shadow-xl shadow-black/30 text-white/90">
-                <p className="text-xs uppercase tracking-[0.2em] text-[#f5e6c8]">Amplify hosting quick start</p>
-                <ol className="mt-3 space-y-2 text-sm text-white/80 list-decimal list-inside">
-                  <li>Push this repo to GitHub.</li>
-                  <li>Open AWS Amplify → New app → Host web app → connect your repo.</li>
-                  <li>Build command: <code className="rounded bg-white/20 px-1">npm ci && npm run build</code></li>
-                  <li>Output dir: <code className="rounded bg-white/20 px-1">dist</code></li>
-                  <li>Production URL: <code className="rounded bg-white/20 px-1">{AMPLIFY_APP_URL}</code></li>
-                  <li>For private S3 buckets, your presign API must return a signed GET <code className="rounded bg-white/20 px-1">fileUrl</code> for viewing.</li>
-                </ol>
-              </div>
             </aside>
+
 
             <main className="space-y-4 rounded-3xl border border-white/15 bg-white/90 p-6 text-slate-900 shadow-2xl shadow-black/40">
               <form onSubmit={handleSubmit} className="space-y-8">
@@ -419,7 +306,7 @@ export default function App() {
                       required
                       value={form.names}
                       onChange={(e) => handleFieldChange("names", e.target.value)}
-                      placeholder="Alex & Jamie Rivera"
+                      placeholder="Dolapo & Olanrewaju"
                       className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm focus:border-[#6b0f1a] focus:outline-none focus:ring-2 focus:ring-[#d4af37]/30"
                     />
                   </label>
@@ -533,10 +420,7 @@ export default function App() {
                       </svg>
                     </div>
                     <p className="text-sm font-semibold text-[#4b0c14]">Drag & drop or click to choose</p>
-                    <p className="text-xs text-slate-600">Unlimited files · Images & videos · We keep the originals</p>
                     <div className="flex gap-2 text-xs font-semibold text-[#4b0c14]">
-                      <span className="rounded-full bg-white px-3 py-1 shadow">Works with S3</span>
-                      <span className="rounded-full bg-white px-3 py-1 shadow">Any storage with pre-signed URLs</span>
                     </div>
                     <input
                       id="files"
@@ -630,10 +514,7 @@ export default function App() {
 
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-[#f5e6c8] via-white to-[#c0c0c0]/60 px-4 py-4 text-sm text-slate-800 shadow-inner">
                   <div className="flex flex-wrap gap-2 text-xs font-semibold text-[#4b0c14]">
-                    <span className="rounded-full bg-white px-3 py-1 ring-1 ring-[#d4af37]">Wine & champagne gold theme</span>
-                    <span className="rounded-full bg-white px-3 py-1 ring-1 ring-[#d4af37]">Unlimited uploads</span>
-                    <span className="rounded-full bg-white px-3 py-1 ring-1 ring-[#d4af37]">QR shareable</span>
-                  </div>
+                    <span className="rounded-full bg-[#722F37] px-5 py-2 text-[#F7E7CE] ring-2 ring-[#F7E7CE]">Thank You !</span>                  </div>
                   <button
                     type="submit"
                     disabled={submitting}
