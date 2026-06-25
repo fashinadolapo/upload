@@ -1,5 +1,12 @@
 import { DragEvent, FormEvent, useMemo, useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
+import imageCompression from "browser-image-compression"; // Import compression engine
+import { uploadData } from "aws-amplify/storage"; // Import Amplify backend client
+import { generateClient } from "aws-amplify/data"; // Import Amplify data client
+import type { Schema } from "../amplify/data/resource";
+
+// Initialize the backend database service provider connection
+const dataClient = generateClient<Schema>();
 
 type UploadMode = "demo" | "amplify" | "presigned";
 
@@ -122,10 +129,15 @@ export default function App() {
     setAttachments((prev) => prev.map((att) => (att.id === id ? updater(att) : att)));
   };
 
-  const uploadAttachment = async (attachment: Attachment, strategy: UploadMode) => {
-    updateAttachment(attachment.id, (att) => ({ ...att, status: "uploading", progress: 12, error: undefined }));
+  const uploadAttachment = async (
+    attachment: Attachment, 
+    strategy: UploadMode, 
+    uniqueStorageKey: string
+  ): Promise<boolean> => {
+    updateAttachment(attachment.id, (att) => ({ ...att, status: "uploading", progress: 5, error: undefined }));
 
-    if (strategy === "demo" || strategy === "amplify") {
+    // 1. DEMO MOCK STRATEGY
+    if (strategy === "demo") {
       await new Promise((resolve) => setTimeout(resolve, 300));
       updateAttachment(attachment.id, (att) => ({ ...att, progress: 72 }));
       await new Promise((resolve) => setTimeout(resolve, 400));
@@ -133,11 +145,75 @@ export default function App() {
         ...att,
         status: "done",
         progress: 100,
-        url: buildReadableFileUrl(cdnBase, `media/${att.file.name}`) || att.preview,
+        url: buildReadableFileUrl(cdnBase, `media/${attachment.file.name}`) || att.preview,
       }));
-      return;
+      return true;
     }
 
+    // 2. REAL AMPLIFY PRODUCTION STRATEGY
+    if (strategy === "amplify") {
+      try {
+        let payload: File | Blob = attachment.file;
+
+        // Optimize Image files before sending to save bandwidth and costs
+        if (attachment.file.type.startsWith("image/")) {
+          const compressionOptions = {
+            maxSizeMB: 1.5,
+            maxWidthOrHeight: 2560,
+            useWebWorker: true,
+            initialQuality: 0.85,
+          };
+          updateAttachment(attachment.id, (att) => ({ ...att, error: "Optimizing image fidelity..." }));
+          payload = await imageCompression(attachment.file, compressionOptions);
+        }
+
+        // Restrict large video allocations
+        if (attachment.file.type.startsWith("video/")) {
+          const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50MB
+          if (attachment.file.size > MAX_VIDEO_BYTES) {
+            throw new Error("Video crosses 50MB threshold limit. Shorten clip length.");
+          }
+        }
+
+        // Push payload data straight to AWS S3
+        const uploadTask = uploadData({
+          path: `media/${uniqueStorageKey}`,
+          data: payload,
+          options: {
+            contentType: attachment.file.type,
+            onProgress: ({ transferredBytes, totalBytes }) => {
+              if (totalBytes) {
+                const percentage = (transferredBytes / totalBytes) * 100;
+                updateAttachment(attachment.id, (att) => ({ ...att, progress: percentage }));
+              }
+            }
+          }
+        });
+
+        // Await the task result completion wrapper
+        await uploadTask.result;
+
+        updateAttachment(attachment.id, (att) => ({
+          ...att,
+          status: "done",
+          progress: 100,
+          url: att.preview, // Stays readable locally on the gallery view canvas
+          error: undefined
+        }));
+
+        return true;
+      } catch (err: any) {
+        console.error("Amplify S3 Error:", err);
+        updateAttachment(attachment.id, (att) => ({
+          ...att,
+          status: "error",
+          error: err.message || "Amplify deployment upload error"
+        }));
+        return false;
+      }
+    }
+
+    // 3. PRESIGNED ENDPOINT STRATEGY
     try {
       if (!uploadEndpoint.trim()) {
         throw new Error("Add a pre-sign endpoint before using pre-signed uploads.");
@@ -187,10 +263,10 @@ export default function App() {
         status: "done",
         progress: 100,
         url: publicUrl,
-        error: publicUrl
-          ? undefined
-          : "Upload succeeded, but no readable file URL was returned. Return a signed GET URL as fileUrl, or configure a public CDN/base URL with bucket read permissions.",
+        error: publicUrl ? undefined : "Upload succeeded, but no readable file URL was returned.",
       }));
+
+      return true;
     } catch (error) {
       console.error(error);
       updateAttachment(attachment.id, (att) => ({
@@ -198,6 +274,7 @@ export default function App() {
         status: "error",
         error: error instanceof Error ? error.message : "Upload failed",
       }));
+      return false;
     }
   };
 
@@ -206,12 +283,42 @@ export default function App() {
     setSubmitting(true);
     setStatusMessage("Uploading files and saving your words...");
 
+    const uploadedKeys: string[] = [];
+
+    // Loop and fire files up into S3
     for (const att of attachments) {
       if (att.status === "done") continue;
-      await uploadAttachment(att, uploadMode);
+      
+      const uniqueKey = `${Date.now()}-${att.file.name}`;
+      const isSuccess = await uploadAttachment(att, uploadMode, uniqueKey); 
+      
+      if (isSuccess) {
+        uploadedKeys.push(uniqueKey);
+      }
     }
 
-    setStatusMessage(uploadMode === "amplify" ? "Thanks! Amplify-ready submission prepared with media/* keys for the configured backend." : "Thanks for sharing the love! Your feedback is saved locally.");
+    // Push the guestbook form object to DynamoDB using Amplify Data Engine
+    try {
+      await dataClient.models.GuestEntry.create({
+        names: form.names,
+        email: form.email || undefined,
+        relation: form.relation,
+        attendance: form.attendance,
+        highlight: form.highlight || undefined,
+        rating: form.rating,
+        story: form.story,
+        suggestions: form.suggestions || undefined,
+        mediaKeys: uploadedKeys,
+      });
+
+      setStatusMessage("Thanks for sharing the love! Your memories are secured safely.");
+      setForm(initialForm); // Reset form text field states
+      setAttachments([]);   // Clear upload staging tray area
+    } catch (dbError) {
+      console.error("Database Error:", dbError);
+      setStatusMessage("Files uploaded, but failed to save your text feedback.");
+    }
+
     setSubmitting(false);
   };
 
@@ -271,7 +378,7 @@ export default function App() {
                 <div className="rounded-2xl bg-white/90 px-4 py-3 text-right shadow ring-1 ring-white/40">
                   <p className="text-xs text-slate-600">Status</p>
                   <p className="text-lg font-semibold text-slate-900">{stats.done} uploaded</p>
-                  <p className="text-xs font-semibold" style={{ color: colors.wine }}>
+                  <p className="text-xs font-semibold p-1 max-w-[180px] break-words" style={{ color: colors.wine }}>
                     {statusMessage}
                   </p>
                 </div>
@@ -294,8 +401,19 @@ export default function App() {
                   View gallery & downloads
                 </button>
               </div>
+              
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-xs text-white/60 space-y-2">
+                <p className="font-semibold text-white">Upload Strategy Engine:</p>
+                <select 
+                  value={uploadMode} 
+                  onChange={(e) => setUploadMode(e.target.value as UploadMode)}
+                  className="w-full bg-slate-800 border border-white/20 p-2 rounded text-white text-xs focus:outline-none focus:ring-1 focus:ring-[#d4af37]"
+                >
+                  <option value="amplify">Production (Amplify S3 Client)</option>
+                  <option value="demo">Local Simulation Demo Mode</option>
+                </select>
+              </div>
             </aside>
-
 
             <main className="space-y-4 rounded-3xl border border-white/15 bg-white/90 p-6 text-slate-900 shadow-2xl shadow-black/40">
               <form onSubmit={handleSubmit} className="space-y-8">
@@ -420,8 +538,6 @@ export default function App() {
                       </svg>
                     </div>
                     <p className="text-sm font-semibold text-[#4b0c14]">Drag & drop or click to choose</p>
-                    <div className="flex gap-2 text-xs font-semibold text-[#4b0c14]">
-                    </div>
                     <input
                       id="files"
                       ref={fileInputRef}
@@ -458,8 +574,8 @@ export default function App() {
                                 </svg>
                               )}
                             </div>
-                            <div>
-                              <p className="text-sm font-semibold text-slate-800">{att.file.name}</p>
+                            <div className="max-w-[150px]">
+                              <p className="text-sm font-semibold text-slate-800 truncate">{att.file.name}</p>
                               <p className="text-xs text-slate-500">{formatBytes(att.file.size)}</p>
                             </div>
                           </div>
@@ -494,10 +610,10 @@ export default function App() {
                                 rel="noreferrer"
                                 className="text-xs font-semibold text-[#6b0f1a] hover:underline"
                               >
-                                View file URL
+                                View local preview
                               </a>
                             )}
-                            {att.error && <p className="text-xs font-semibold text-rose-500">{att.error}</p>}
+                            {att.error && <p className="text-xs font-semibold text-amber-600">{att.error}</p>}
                           </div>
                           <button
                             type="button"
@@ -514,14 +630,15 @@ export default function App() {
 
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-[#f5e6c8] via-white to-[#c0c0c0]/60 px-4 py-4 text-sm text-slate-800 shadow-inner">
                   <div className="flex flex-wrap gap-2 text-xs font-semibold text-[#4b0c14]">
-                    <span className="rounded-full bg-[#722F37] px-5 py-2 text-[#F7E7CE] ring-2 ring-[#F7E7CE]">Thank You !</span>                  </div>
+                    <span className="rounded-full bg-[#722F37] px-5 py-2 text-[#F7E7CE] ring-2 ring-[#F7E7CE]">Thank You!</span>
+                  </div>
                   <button
                     type="submit"
                     disabled={submitting}
                     className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-[1px] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white"
                     style={{ background: `linear-gradient(135deg, ${colors.wine}, ${colors.deepWine})` }}
                   >
-                    {submitting ? "Uploading..." : "Send love & upload"}
+                    {submitting ? "Processing..." : "Send love & upload"}
                     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
                       <path d="M5 12h14" />
                       <path d="m12 5 7 7-7 7" />

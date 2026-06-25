@@ -1,10 +1,11 @@
-import { defineBackend } from "@aws-amplify/backend";
-import { auth } from "./auth/resource";
-import { data } from "./data/resource";
-import { storage } from "./storage/resource";
+import { defineStorage } from '@aws-amplify/backend';
 
-defineBackend({
-  auth,
-  data,
-  storage,
+export const storage = defineStorage({
+  name: 'weddingMediaBucket',
+  access: (allow) => ({
+    'media/*': [
+      // Allows guests/everyone to drop photos and read them back in the gallery feed
+      allow.guest.to(['read', 'write']),
+    ]
+  })
 });
