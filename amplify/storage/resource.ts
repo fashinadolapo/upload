@@ -9,7 +9,7 @@ export const storage = defineStorage({
   name: "weddingMedia",
   access: (allow) => ({
     "media/*": [
-      allow.guest.to(["read", "write", "delete"]),
+      allow.guest.to(["read", "write"]),
     ],
   }),
 });
