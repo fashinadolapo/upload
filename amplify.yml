@@ -4,7 +4,7 @@ backend:
     # 1. Move the installation to the correct phase
     install:
       commands:
-        - npm ci --legacy-peer-deps
+        - npm install --legacy-peer-deps
     build:
       commands:
         - npx ampx pipeline-deploy --branch $AWS_BRANCH --app-id $AWS_APP_ID
@@ -13,7 +13,7 @@ frontend:
     # 2. Keep frontend clean and isolated
     install:
       commands:
-        - npm ci --legacy-peer-deps
+        - npm install --legacy-peer-deps
     build:
       commands:
         - npm run build 
