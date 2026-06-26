@@ -9,7 +9,7 @@ frontend:
   phases:
     preBuild:
       commands:
-        - npm install --legacy-peer-deps
+        - npm ci --legacy-peer-deps
     build:
       commands:
         - npm run build
@@ -21,3 +21,4 @@ frontend:
     paths:
       - .npm/**/*
       - node_modules/**/*
+      - amplify/ .amplify/**/*

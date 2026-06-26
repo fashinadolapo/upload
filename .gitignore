@@ -2,3 +2,5 @@ node_modules/
 dist/   
 .amplify/
 cdk.out/
+.vscode/
+.kiro/

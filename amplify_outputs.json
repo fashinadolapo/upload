@@ -1,9 +1,9 @@
 {
   "auth": {
-    "user_pool_id": "eu-central-1_A0pGoeFP4",
+    "user_pool_id": "eu-central-1_O7WCBUcDI",
     "aws_region": "eu-central-1",
-    "user_pool_client_id": "50ir49gp20qg6ss304qe26rl31",
-    "identity_pool_id": "eu-central-1:f7e809c1-4c40-40f6-b991-eace6f7fafe3",
+    "user_pool_client_id": "18io196j3q5i84tj4h93pu0g5d",
+    "identity_pool_id": "eu-central-1:4cffd0e3-e711-412c-b5b2-8c068593d336",
     "mfa_methods": [],
     "standard_required_attributes": [
       "email"
@@ -26,7 +26,7 @@
     "unauthenticated_identities_enabled": true
   },
   "data": {
-    "url": "https://vco3ylsoavenjeeomtitvt6wyu.appsync-api.eu-central-1.amazonaws.com/graphql",
+    "url": "https://b6wp7t4ohncfbknrl2fceegfty.appsync-api.eu-central-1.amazonaws.com/graphql",
     "aws_region": "eu-central-1",
     "default_authorization_type": "AWS_IAM",
     "authorization_types": [
@@ -63,14 +63,14 @@
               "name": "relation",
               "isArray": false,
               "type": "String",
-              "isRequired": false,
+              "isRequired": true,
               "attributes": []
             },
             "attendance": {
               "name": "attendance",
               "isArray": false,
               "type": "String",
-              "isRequired": false,
+              "isRequired": true,
               "attributes": []
             },
             "highlight": {
@@ -84,14 +84,14 @@
               "name": "rating",
               "isArray": false,
               "type": "Int",
-              "isRequired": false,
+              "isRequired": true,
               "attributes": []
             },
             "story": {
               "name": "story",
               "isArray": false,
               "type": "String",
-              "isRequired": false,
+              "isRequired": true,
               "attributes": []
             },
             "suggestions": {
@@ -154,6 +154,125 @@
             "primaryKeyFieldName": "id",
             "sortKeyFieldNames": []
           }
+        },
+        "MediaItem": {
+          "name": "MediaItem",
+          "fields": {
+            "id": {
+              "name": "id",
+              "isArray": false,
+              "type": "ID",
+              "isRequired": true,
+              "attributes": []
+            },
+            "fileName": {
+              "name": "fileName",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "fileKey": {
+              "name": "fileKey",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "fileType": {
+              "name": "fileType",
+              "isArray": false,
+              "type": "String",
+              "isRequired": true,
+              "attributes": []
+            },
+            "fileSize": {
+              "name": "fileSize",
+              "isArray": false,
+              "type": "Int",
+              "isRequired": true,
+              "attributes": []
+            },
+            "uploaderName": {
+              "name": "uploaderName",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
+            "message": {
+              "name": "message",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
+            "uploadedAt": {
+              "name": "uploadedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": []
+            },
+            "isVisible": {
+              "name": "isVisible",
+              "isArray": false,
+              "type": "Boolean",
+              "isRequired": false,
+              "attributes": []
+            },
+            "uploadStatus": {
+              "name": "uploadStatus",
+              "isArray": false,
+              "type": "String",
+              "isRequired": false,
+              "attributes": []
+            },
+            "createdAt": {
+              "name": "createdAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            },
+            "updatedAt": {
+              "name": "updatedAt",
+              "isArray": false,
+              "type": "AWSDateTime",
+              "isRequired": false,
+              "attributes": [],
+              "isReadOnly": true
+            }
+          },
+          "syncable": true,
+          "pluralName": "MediaItems",
+          "attributes": [
+            {
+              "type": "model",
+              "properties": {}
+            },
+            {
+              "type": "auth",
+              "properties": {
+                "rules": [
+                  {
+                    "allow": "public",
+                    "provider": "identityPool",
+                    "operations": [
+                      "create",
+                      "read"
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "primaryKeyInfo": {
+            "isCustomPrimaryKey": false,
+            "primaryKeyFieldName": "id",
+            "sortKeyFieldNames": []
+          }
         }
       },
       "enums": {},
@@ -162,15 +281,48 @@
   },
   "storage": {
     "aws_region": "eu-central-1",
-    "bucket_name": "amplify-d3d3r3x3kigp2s-ma-weddingmediabucket73c660-gk3qmcsbbcy2",
+    "bucket_name": "amplify-weddingphotoshari-weddingmediabucket73c660-gplacg5eqaj7",
     "buckets": [
       {
         "name": "weddingMedia",
-        "bucket_name": "amplify-d3d3r3x3kigp2s-ma-weddingmediabucket73c660-gk3qmcsbbcy2",
+        "bucket_name": "amplify-weddingphotoshari-weddingmediabucket73c660-gplacg5eqaj7",
         "aws_region": "eu-central-1",
         "paths": {
           "media/*": {
             "guest": [
+              "get",
+              "list",
+              "write"
+            ],
+            "authenticated": [
+              "get",
+              "list",
+              "write",
+              "delete"
+            ]
+          },
+          "media/processed/*": {
+            "guest": [
+              "get",
+              "list"
+            ],
+            "authenticated": [
+              "get",
+              "list"
+            ]
+          },
+          "media/thumbnails/*": {
+            "guest": [
+              "get",
+              "list"
+            ],
+            "authenticated": [
+              "get",
+              "list"
+            ]
+          },
+          "admin/*": {
+            "authenticated": [
               "get",
               "list",
               "write",
@@ -181,5 +333,51 @@
       }
     ]
   },
-  "version": "1.3"
+  "version": "1.4",
+  "custom": {
+    "uploadConfig": {
+      "unlimited": true,
+      "allowedTypes": [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+        "image/heic",
+        "image/heif",
+        "image/gif",
+        "image/bmp",
+        "video/mp4",
+        "video/mov",
+        "video/avi",
+        "video/mkv",
+        "video/webm",
+        "video/wmv",
+        "video/m4v",
+        "video/3gp",
+        "image/x-canon-cr2",
+        "image/x-nikon-nef",
+        "image/x-sony-arw"
+      ]
+    },
+    "corsConfig": {
+      "allowedOrigins": [
+        "*"
+      ],
+      "allowedMethods": [
+        "GET",
+        "PUT",
+        "POST",
+        "HEAD",
+        "DELETE"
+      ],
+      "allowedHeaders": [
+        "*"
+      ],
+      "maxAgeSeconds": 86400
+    },
+    "performance": {
+      "useAccelerateEndpoint": true,
+      "enableCompression": true
+    }
+  }
 }

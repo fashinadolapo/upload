@@ -1,0 +1,121 @@
+{
+  "analysisDate": "2024-01-15",
+  "application": "Wedding Photo Sharing App",
+  "buildSystem": "Vite 7.3.5 + TypeScript",
+  
+  "bundleMetrics": {
+    "totalUncompressed": "516.6 KB",
+    "totalGzipped": "162.4 KB",
+    "meetsTarget": true,
+    "target": "< 200 KB gzipped",
+    
+    "composition": {
+      "appCode": {
+        "size": "349.43 KB",
+        "gzipped": "106.98 KB",
+        "percentage": 65.9
+      },
+      "vendor": {
+        "size": "87.45 KB",
+        "gzipped": "29.03 KB",
+        "percentage": 17.9,
+        "includes": ["React", "React DOM", "AWS Amplify"]
+      },
+      "utilities": {
+        "size": "53.16 KB",
+        "gzipped": "20.85 KB",
+        "percentage": 12.8,
+        "includes": ["browser-image-compression"]
+      },
+      "css": {
+        "size": "26.09 KB",
+        "gzipped": "5.37 KB",
+        "percentage": 3.3,
+        "includes": ["Tailwind CSS"]
+      },
+      "ui": {
+        "size": "0.06 KB",
+        "gzipped": "0.08 KB",
+        "percentage": 0.1,
+        "includes": ["qrcode.react"]
+      }
+    }
+  },
+  
+  "coreWebVitals": {
+    "estimatedLCP": "3.5-4.5 seconds",
+    "lcpTarget": "< 2.5 seconds",
+    "lcpStatus": "fails",
+    
+    "estimatedFID": "50-100ms",
+    "fidTarget": "< 100ms",
+    "fidStatus": "borderline",
+    
+    "estimatedCLS": "0.05-0.1",
+    "clsTarget": "< 0.1",
+    "clsStatus": "meets",
+    
+    "estimatedTTI": "3.5-4.5 seconds",
+    "ttiTarget": "< 3 seconds",
+    "ttiStatus": "fails"
+  },
+  
+  "uploadPerformance": {
+    "mechanism": "AWS Amplify Storage direct upload",
+    "features": {
+      "progressTracking": true,
+      "errorHandling": "basic",
+      "retryLogic": false,
+      "resumableUploads": false,
+      "chunkedUploads": false
+    },
+    
+    "estimatedSuccessRates": {
+      "1MB": 95,
+      "10MB": 90,
+      "50MB": 80,
+      "100MB": 70
+    }
+  },
+  
+  "criticalIssues": [
+    "Single-file bundle prevents code splitting",
+    "All code loaded upfront (no lazy loading)",
+    "No production minification optimizations",
+    "No security headers configured",
+    "No upload retry logic or resume capability"
+  ],
+  
+  "optimizationOpportunities": [
+    "Remove vite-plugin-singlefile for code splitting",
+    "Implement vendor chunk separation",
+    "Add lazy loading for non-critical components",
+    "Configure Gzip+Brotli compression",
+    "Implement error boundaries",
+    "Add upload retry logic with exponential backoff"
+  ],
+  
+  "priorityRecommendations": {
+    "high": [
+      "Remove single-file plugin",
+      "Implement code splitting",
+      "Configure production minification"
+    ],
+    "medium": [
+      "Add lazy loading",
+      "Implement error boundaries",
+      "Optimize image compression"
+    ],
+    "low": [
+      "Add performance monitoring",
+      "Implement security headers",
+      "Add service worker"
+    ]
+  },
+  
+  "successMetrics": {
+    "bundleSizeReduction": "Target: 26% reduction (162.4 KB → < 120 KB)",
+    "lcpImprovement": "Target: 30-45% improvement (3.5-4.5s → < 2.5s)",
+    "uploadSuccessImprovement": "Target: 5-19% improvement (80-95% → > 99%)"
+  }
+}
