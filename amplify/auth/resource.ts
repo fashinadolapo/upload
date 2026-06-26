@@ -1,9 +1,7 @@
 import { defineAuth } from "@aws-amplify/backend";
 
-/**
- * Provision an Identity Pool to hand out scoped, temporary IAM credentials 
- * to anonymous wedding guests without requiring a login interface.
- */
+// Minimal auth setup - only needed for Amplify backend structure
+// Guests won't actually use authentication
 export const auth = defineAuth({
   loginWith: {
     email: true,

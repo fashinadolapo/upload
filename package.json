@@ -1,7 +1,7 @@
 {
-  "name": "react-vite-tailwind",
+  "name": "wedding-photo-sharing",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "engines": {
     "node": ">=22.16.0",
@@ -10,23 +10,20 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "npm run build && npx ampx pipeline-deploy"
   },
   "dependencies": {
     "aws-amplify": "^6.18.0",
-    "aws-cdk-lib": "^2.260.0",
-    "browser-image-compression": "^2.0.2",
-    "clsx": "2.1.1",
-    "constructs": "^10.6.0",
-    "qrcode.react": "^4.2.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "tailwind-merge": "3.6.0"
+    "clsx": "2.1.1",
+    "tailwind-merge": "3.6.0",
+    "qrcode.react": "^4.2.0"
   },
   "devDependencies": {
     "@aws-amplify/backend": "^1.2.1",
     "@aws-amplify/backend-cli": "^1.8.3",
-    "@parcel/watcher": "^2.5.6",
     "@tailwindcss/vite": "4.3.1",
     "@types/node": "22.16.0",
     "@types/react": "19.2.7",
