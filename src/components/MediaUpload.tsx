@@ -1,9 +1,8 @@
 import React, { useState } from "react";
 import { uploadData } from "aws-amplify/storage";
 import { generateClient } from "aws-amplify/api";
-import type { Schema } from "../amplify/data/resource";
-
-const client = generateClient<Schema>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const client = generateClient<any>();
 
 // ✅ 5GB video limit
 const MAX_VIDEO_BYTES = 5 * 1024 * 1024 * 1024;
