@@ -9,14 +9,15 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "typecheck": "tsc --noEmit",
     "deploy": "npm run build && npx ampx pipeline-deploy"
   },
   "dependencies": {
     "aws-amplify": "^6.18.0",
+    "browser-image-compression": "^2.0.2",
     "clsx": "2.1.1",
-    "qrcode.react": "^4.2.0",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "tailwind-merge": "3.6.0"
@@ -26,11 +27,11 @@
     "@aws-amplify/backend-cli": "^1.8.3",
     "@size-limit/preset-app": "^12.1.0",
     "@tailwindcss/vite": "4.3.1",
+    "@types/aws-lambda": "^8.10.147",
     "@types/node": "22.16.0",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.1.4",
-    "browser-image-compression": "^2.0.2",
     "rollup-plugin-visualizer": "^7.0.1",
     "tailwindcss": "4.3.1",
     "typescript": "6.0.3",

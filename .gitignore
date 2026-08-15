@@ -1,6 +1,14 @@
 node_modules/
-dist/   
+dist/
 .amplify/
 cdk.out/
 .vscode/
 .kiro/
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+coverage/
+.turbo/
+preview-landing.jpg
