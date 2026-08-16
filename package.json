@@ -12,6 +12,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc --noEmit",
+    "typecheck:backend": "tsc -p tsconfig.amplify.json --noEmit",
     "deploy": "npm run build && npx ampx pipeline-deploy"
   },
   "dependencies": {
@@ -32,6 +33,8 @@
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "5.1.4",
+    "aws-cdk-lib": "^2.265.0",
+    "constructs": "^10.8.1",
     "rollup-plugin-visualizer": "^7.0.1",
     "tailwindcss": "4.3.1",
     "typescript": "6.0.3",
