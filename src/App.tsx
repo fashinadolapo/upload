@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import imageCompression from "browser-image-compression";
-import { uploadData } from "aws-amplify/storage";
+import { remove as removeStorageObject, uploadData } from "aws-amplify/storage";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../amplify/data/resource";
 import {
@@ -150,6 +150,11 @@ export default function App() {
     }
   });
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deletingMediaId, setDeletingMediaId] = useState<string | null>(null);
+  const [mediaActionMessage, setMediaActionMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -853,6 +858,59 @@ export default function App() {
       setTimeout(() => setCopiedId(null), 2000);
     } catch {
       alert("Could not copy — your browser blocked clipboard access.");
+    }
+  };
+
+  const deleteMediaFile = async (entryId: string, key: string) => {
+    const mediaId = `${entryId}:${key}`;
+    const confirmed = window.confirm(
+      `Permanently delete "${key}" from the S3 bucket? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeletingMediaId(mediaId);
+    setMediaActionMessage(null);
+    let storageDeleted = false;
+
+    try {
+      const storagePath = key.startsWith("media/") ? key : `media/${key}`;
+      await removeStorageObject({ path: storagePath });
+      storageDeleted = true;
+
+      const entry = guestEntries.find((item) => item.id === entryId);
+      if (!entry) throw new Error("The associated guest entry was not found.");
+
+      const remainingKeys = (entry.mediaKeys || []).filter(
+        (mediaKey: string) => mediaKey !== key
+      );
+      const result = await adminDataClient.models.GuestEntry.update({
+        id: entryId,
+        mediaKeys: remainingKeys,
+      });
+      if (result.errors?.length) {
+        throw new Error(result.errors.map((error) => error.message).join("; "));
+      }
+
+      setGuestEntries((entries) =>
+        entries.map((item) =>
+          item.id === entryId ? { ...item, mediaKeys: remainingKeys } : item
+        )
+      );
+      setMediaActionMessage({
+        type: "success",
+        text: `Deleted ${key} from S3.`,
+      });
+    } catch (error) {
+      console.error("Failed to delete media:", error);
+      const detail = error instanceof Error ? error.message : "Unknown error";
+      setMediaActionMessage({
+        type: "error",
+        text: storageDeleted
+          ? `The S3 file was deleted, but its database reference could not be removed: ${detail}`
+          : `Could not delete the S3 file: ${detail}`,
+      });
+    } finally {
+      setDeletingMediaId(null);
     }
   };
 
@@ -2152,9 +2210,22 @@ export default function App() {
                             it. {adminStats.mediaCount} file
                             {adminStats.mediaCount === 1 ? "" : "s"} across{" "}
                             {adminStats.withMedia} guest
-                            {adminStats.withMedia === 1 ? "" : "s"}.
+                            {adminStats.withMedia === 1 ? "" : "s"}. Admins can
+                            permanently delete unwanted photos or videos from S3.
                           </p>
                         </div>
+                        {mediaActionMessage && (
+                          <div
+                            role="status"
+                            className={`rounded-xl border px-4 py-3 text-sm ${
+                              mediaActionMessage.type === "success"
+                                ? "border-emerald-400/40 bg-emerald-900/30 text-emerald-200"
+                                : "border-rose-400/40 bg-rose-900/30 text-rose-200"
+                            }`}
+                          >
+                            {mediaActionMessage.text}
+                          </div>
+                        )}
                         {adminStats.mediaRows.length === 0 ? (
                           <div className="rounded-3xl border border-white/10 bg-white/10 p-12 text-center text-white/60">
                             No media uploaded yet.
@@ -2168,6 +2239,7 @@ export default function App() {
                                     <th className="px-4 py-3">File key</th>
                                     <th className="px-4 py-3">Guest</th>
                                     <th className="px-4 py-3">When</th>
+                                    <th className="px-4 py-3 text-right">Action</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -2207,6 +2279,24 @@ export default function App() {
                                         </td>
                                         <td className="whitespace-nowrap px-4 py-3 text-xs text-white/50">
                                           {formatEntryDate(row.createdAt)}
+                                        </td>
+                                        <td className="whitespace-nowrap px-4 py-3 text-right">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              deleteMediaFile(row.entryId, row.key)
+                                            }
+                                            disabled={
+                                              deletingMediaId ===
+                                              `${row.entryId}:${row.key}`
+                                            }
+                                            className="rounded-lg border border-rose-400/40 bg-rose-900/30 px-3 py-1.5 text-xs font-semibold text-rose-200 transition hover:bg-rose-800/50 disabled:cursor-wait disabled:opacity-60"
+                                          >
+                                            {deletingMediaId ===
+                                            `${row.entryId}:${row.key}`
+                                              ? "Deleting…"
+                                              : "Delete"}
+                                          </button>
                                         </td>
                                       </tr>
                                     ))}
