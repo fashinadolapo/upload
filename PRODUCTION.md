@@ -20,9 +20,11 @@
 - Authenticated couple: full **read/update/delete** for the admin vault.
 - Admin list uses `authMode: "userPool"`.
 
-### Storage
-- Guests: read/write `media/*`
-- Authenticated: read/write/delete + private `admin/*`
+### Storage and public gallery
+- Guests: list/read/write `media/*`
+- The Gallery page anonymously lists the direct objects in `media/`, creates temporary read-only preview URLs, and creates fresh attachment URLs for downloads.
+- Anyone with the portal link can therefore view and download all wedding photos/videos. Guest messages, emails, and other form answers remain private to authenticated admins.
+- Authenticated couple accounts: read/write/delete + private `admin/*`. Only authenticated admins can delete media through the interface.
 
 ### Hosting hardening (`amplify.yml`)
 - HSTS, nosniff, SAMEORIGIN frame, referrer policy, permissions policy
@@ -54,7 +56,8 @@ Without sandbox, the app uses committed `amplify_outputs.json` pointing at the d
 
 ## Security notes
 
-- Guest **read** of all submissions is no longer public — only authenticated admins can list.
+- Guest form submissions (names, emails, stories, and wishes) are not publicly readable; only authenticated admins can list them.
+- Wedding media is intentionally public to anyone with the portal link. Rotate the storage policy or take the portal offline after the sharing window if that is no longer desired.
 - Passwords are never stored in `localStorage` (only a “must change password” flag).
 - Recovery codes are emailed by Cognito; they are not displayed on-screen.
 - Rotate couple passwords after the wedding if the portal stays online.

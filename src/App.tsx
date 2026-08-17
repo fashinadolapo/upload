@@ -10,6 +10,7 @@ import imageCompression from "browser-image-compression";
 import { remove as removeStorageObject, uploadData } from "aws-amplify/storage";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../amplify/data/resource";
+import { PublicGallery } from "@/components/PublicGallery";
 import {
   COLORS as colors,
   DEFAULT_ADMIN_PASSWORD,
@@ -98,7 +99,6 @@ function buildReadableFileUrl(baseUrl: string, filename: string) {
 
 export default function App() {
   const [activePage, setActivePage] = useState<"upload" | "gallery" | "admin">("upload");
-  const [galleryTab, setGalleryTab] = useState<"photos" | "videos" | "downloads">("photos");
   const [form, setForm] = useState<FormState>(initialForm);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const uploadMode: UploadMode = "amplify";
@@ -2888,6 +2888,49 @@ ${notes
             )}
           </header>
 
+          {/* ── GUEST APPRECIATION BANNER ── */}
+          <section
+            aria-labelledby="guest-appreciation-title"
+            className="relative overflow-hidden rounded-3xl border border-[#d4af37]/45 bg-gradient-to-r from-[#4b0c14] via-[#6b0f1a] to-[#4b0c14] px-5 py-6 text-center shadow-xl shadow-black/30 md:px-10 md:py-7"
+          >
+            <div
+              className="pointer-events-none absolute -left-10 -top-12 h-36 w-36 rounded-full opacity-20 blur-3xl"
+              style={{ background: colors.champagne }}
+            />
+            <div
+              className="pointer-events-none absolute -bottom-16 -right-8 h-40 w-40 rounded-full opacity-25 blur-3xl"
+              style={{ background: colors.gold }}
+            />
+            <div className="relative mx-auto max-w-4xl">
+              <p className="text-2xl" aria-hidden>
+                🙏🏾 💛 🕊️
+              </p>
+              <p className="mt-2 text-xs font-semibold uppercase tracking-[0.26em] text-[#d4af37]">
+                To our cherished guests & well-wishers
+              </p>
+              <h2
+                id="guest-appreciation-title"
+                className="mt-2 text-2xl font-semibold text-[#f5e6c8] md:text-3xl"
+              >
+                Thank you for sharing in our joy
+              </h2>
+              <p className="mx-auto mt-3 max-w-3xl text-sm leading-relaxed text-white/85 md:text-base">
+                We are deeply grateful for your presence, prayers, kind wishes,
+                and every beautiful memory you shared with us. As you return to
+                your respective abodes, we wish you safe travels and journey
+                mercies. May you arrive safely and carry the joy of this
+                celebration with you.
+              </p>
+              <p className="mt-3 text-sm italic text-[#f5e6c8]/90">
+                With love and heartfelt appreciation,
+                <span className="ml-1 not-italic font-semibold text-[#d4af37]">
+                  Olanrewaju & Dolapo
+                </span>
+                <span aria-hidden> 💞</span>
+              </p>
+            </div>
+          </section>
+
           {/* ── UPLOAD PAGE ── */}
           {activePage === "upload" ? (
             <div className="grid gap-6 lg:grid-cols-[1fr,1.2fr]">
@@ -3356,149 +3399,8 @@ ${notes
 
           ) : (
 
-          /* ── GALLERY PAGE ── */
-            <main className="rounded-3xl border border-white/15 bg-white/90 p-6 text-slate-900 shadow-2xl shadow-black/40">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-[#6b0f1a]">
-                    Uploaded memories
-                  </p>
-                  <h2 className="text-3xl font-semibold text-slate-900">
-                    Photos, videos & downloads
-                  </h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActivePage("upload")}
-                  className="rounded-xl bg-[#6b0f1a] px-4 py-2 text-sm font-semibold text-white shadow"
-                >
-                  ← Back to upload
-                </button>
-              </div>
-
-              {/* Gallery tabs */}
-              <div className="mt-6 flex flex-wrap gap-2">
-                {(["photos", "videos", "downloads"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setGalleryTab(tab)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold capitalize ${
-                      galleryTab === tab
-                        ? "bg-[#6b0f1a] text-white"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                    }`}
-                  >
-                    {tab === "photos" && `📷 Photos (${stats.imageCount})`}
-                    {tab === "videos" && `🎥 Videos (${stats.videoCount})`}
-                    {tab === "downloads" && `⬇️ Downloads (${attachments.length})`}
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-6">
-                {galleryTab !== "downloads" ? (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {attachments
-                      .filter((att) =>
-                        galleryTab === "photos"
-                          ? att.file.type.startsWith("image")
-                          : att.file.type.startsWith("video")
-                      )
-                      .map((att) => (
-                        <article
-                          key={att.id}
-                          className="overflow-hidden rounded-2xl bg-white shadow ring-1 ring-slate-100"
-                        >
-                          {att.file.type.startsWith("image") ? (
-                            <img
-                              src={att.preview}
-                              alt={att.file.name}
-                              className="h-56 w-full object-cover"
-                            />
-                          ) : (
-                            <video
-                              src={att.preview}
-                              controls
-                              className="h-56 w-full bg-black object-contain"
-                            />
-                          )}
-                          <div className="p-3">
-                            <p className="truncate text-sm font-semibold text-slate-800">
-                              {att.file.name}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {formatBytes(att.file.size)} ·{" "}
-                              <span
-                                className={
-                                  att.status === "done"
-                                    ? "text-emerald-600 font-semibold"
-                                    : att.status === "error"
-                                    ? "text-rose-600 font-semibold"
-                                    : "text-slate-500"
-                                }
-                              >
-                                {att.status}
-                              </span>
-                            </p>
-                          </div>
-                        </article>
-                      ))}
-                    {attachments.filter((att) =>
-                      galleryTab === "photos"
-                        ? att.file.type.startsWith("image")
-                        : att.file.type.startsWith("video")
-                    ).length === 0 && (
-                      <p className="col-span-3 rounded-2xl bg-white p-5 text-sm text-slate-600 shadow text-center">
-                        No {galleryTab} selected yet. Add files from the
-                        landing page.
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {attachments.map((att) => (
-                      <a
-                        key={att.id}
-                        href={att.url || att.preview}
-                        download={att.file.name}
-                        className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 text-sm shadow ring-1 ring-slate-100 hover:ring-[#d4af37] transition"
-                      >
-                        <span>
-                          <strong className="text-slate-900">
-                            {att.file.name}
-                          </strong>
-                          <br />
-                          <span className="text-xs text-slate-500">
-                            {formatBytes(att.file.size)} ·{" "}
-                            {att.file.type || "file"} ·{" "}
-                            <span
-                              className={
-                                att.status === "done"
-                                  ? "text-emerald-600 font-semibold"
-                                  : att.status === "error"
-                                  ? "text-rose-600 font-semibold"
-                                  : "text-slate-500"
-                              }
-                            >
-                              {att.status}
-                            </span>
-                          </span>
-                        </span>
-                        <span className="rounded-full bg-[#f5e6c8] px-3 py-1 font-semibold text-[#6b0f1a] whitespace-nowrap">
-                          ⬇️ Download
-                        </span>
-                      </a>
-                    ))}
-                    {attachments.length === 0 && (
-                      <p className="rounded-2xl bg-white p-5 text-sm text-slate-600 shadow text-center">
-                        No downloads yet. Add files from the landing page.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </main>
+          /* ── PUBLIC GALLERY PAGE ── */
+            <PublicGallery onBack={() => setActivePage("upload")} />
           )}
         </div>
       </div>
