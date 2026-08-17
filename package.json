@@ -12,6 +12,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc --noEmit",
+    "typecheck:backend": "tsc -p tsconfig.amplify.json --noEmit",
     "deploy": "npm run build && npx ampx pipeline-deploy"
   },
   "dependencies": {
