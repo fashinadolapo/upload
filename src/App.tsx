@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import imageCompression from "browser-image-compression";
-import { uploadData } from "aws-amplify/storage";
+import { remove as removeStorageObject, uploadData } from "aws-amplify/storage";
 import { generateClient } from "aws-amplify/data";
 import type { Schema } from "../amplify/data/resource";
 import {
@@ -49,6 +49,14 @@ type Attachment = {
   progress: number;
   url?: string;
   error?: string;
+};
+
+type AdminMediaRow = {
+  key: string;
+  guest: string;
+  email?: string;
+  entryId: string;
+  createdAt?: string;
 };
 
 type FormState = {
@@ -150,6 +158,12 @@ export default function App() {
     }
   });
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selectedMediaIds, setSelectedMediaIds] = useState<string[]>([]);
+  const [deletingMediaIds, setDeletingMediaIds] = useState<string[]>([]);
+  const [mediaActionMessage, setMediaActionMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -856,6 +870,103 @@ export default function App() {
     }
   };
 
+  const mediaRowId = (row: Pick<AdminMediaRow, "entryId" | "key">) =>
+    `${row.entryId}:${row.key}`;
+
+  const deleteMediaFiles = async (rows: AdminMediaRow[]) => {
+    if (rows.length === 0) return;
+    const confirmed = window.confirm(
+      rows.length === 1
+        ? `Permanently delete "${rows[0].key}" from the S3 bucket? This cannot be undone.`
+        : `Permanently delete ${rows.length} selected files from the S3 bucket? This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    const requestedIds = rows.map(mediaRowId);
+    setDeletingMediaIds(requestedIds);
+    setMediaActionMessage(null);
+
+    const storageResults = await Promise.allSettled(
+      rows.map((row) =>
+        removeStorageObject({
+          path: row.key.startsWith("media/") ? row.key : `media/${row.key}`,
+        })
+      )
+    );
+    const storageDeletedRows = rows.filter(
+      (_row, index) => storageResults[index].status === "fulfilled"
+    );
+    const storageFailureCount = rows.length - storageDeletedRows.length;
+
+    const deletedKeysByEntry = new Map<string, Set<string>>();
+    storageDeletedRows.forEach((row) => {
+      const keys = deletedKeysByEntry.get(row.entryId) || new Set<string>();
+      keys.add(row.key);
+      deletedKeysByEntry.set(row.entryId, keys);
+    });
+
+    const syncedEntryIds = new Set<string>();
+    let metadataFailureCount = 0;
+    for (const [entryId, deletedKeys] of deletedKeysByEntry) {
+      const entry = guestEntries.find((item) => item.id === entryId);
+      if (!entry) {
+        metadataFailureCount += deletedKeys.size;
+        continue;
+      }
+      const remainingKeys = (entry.mediaKeys || []).filter(
+        (key: string) => !deletedKeys.has(key)
+      );
+      try {
+        const result = await adminDataClient.models.GuestEntry.update({
+          id: entryId,
+          mediaKeys: remainingKeys,
+        });
+        if (result.errors?.length) {
+          throw new Error(result.errors.map((error) => error.message).join("; "));
+        }
+        syncedEntryIds.add(entryId);
+      } catch (error) {
+        console.error("S3 files deleted but media metadata update failed:", error);
+        metadataFailureCount += deletedKeys.size;
+      }
+    }
+
+    const fullyDeletedRows = storageDeletedRows.filter((row) =>
+      syncedEntryIds.has(row.entryId)
+    );
+    const fullyDeletedIds = new Set(fullyDeletedRows.map(mediaRowId));
+    setGuestEntries((entries) =>
+      entries.map((entry) => {
+        const deletedKeys = syncedEntryIds.has(entry.id)
+          ? deletedKeysByEntry.get(entry.id)
+          : undefined;
+        return deletedKeys
+          ? {
+              ...entry,
+              mediaKeys: (entry.mediaKeys || []).filter(
+                (key: string) => !deletedKeys.has(key)
+              ),
+            }
+          : entry;
+      })
+    );
+    setSelectedMediaIds((ids) => ids.filter((id) => !fullyDeletedIds.has(id)));
+
+    const completedCount = fullyDeletedRows.length;
+    if (storageFailureCount === 0 && metadataFailureCount === 0) {
+      setMediaActionMessage({
+        type: "success",
+        text: `Deleted ${completedCount} ${completedCount === 1 ? "file" : "files"} from S3.`,
+      });
+    } else {
+      setMediaActionMessage({
+        type: "error",
+        text: `Deleted ${completedCount} of ${rows.length} files completely. ${storageFailureCount} S3 deletion(s) failed and ${metadataFailureCount} database reference update(s) failed.`,
+      });
+    }
+    setDeletingMediaIds([]);
+  };
+
   const adminStats = useMemo(() => {
     const total = guestEntries.length;
     const withMedia = guestEntries.filter(
@@ -922,6 +1033,17 @@ export default function App() {
       ).length,
     };
   }, [guestEntries, starredIds]);
+
+  const filteredMediaRows = useMemo(() => {
+    const q = adminSearch.trim().toLowerCase();
+    if (!q) return adminStats.mediaRows as AdminMediaRow[];
+    return (adminStats.mediaRows as AdminMediaRow[]).filter(
+      (row) =>
+        row.key.toLowerCase().includes(q) ||
+        String(row.guest || "").toLowerCase().includes(q) ||
+        String(row.email || "").toLowerCase().includes(q)
+    );
+  }, [adminStats.mediaRows, adminSearch]);
 
   const filteredEntries = useMemo(() => {
     const q = adminSearch.trim().toLowerCase();
@@ -2152,9 +2274,83 @@ export default function App() {
                             it. {adminStats.mediaCount} file
                             {adminStats.mediaCount === 1 ? "" : "s"} across{" "}
                             {adminStats.withMedia} guest
-                            {adminStats.withMedia === 1 ? "" : "s"}.
+                            {adminStats.withMedia === 1 ? "" : "s"}. Admins can
+                            permanently delete unwanted photos or videos from S3.
                           </p>
                         </div>
+                        {mediaActionMessage && (
+                          <div
+                            role="status"
+                            className={`rounded-xl border px-4 py-3 text-sm ${
+                              mediaActionMessage.type === "success"
+                                ? "border-emerald-400/40 bg-emerald-900/30 text-emerald-200"
+                                : "border-rose-400/40 bg-rose-900/30 text-rose-200"
+                            }`}
+                          >
+                            {mediaActionMessage.text}
+                          </div>
+                        )}
+                        {adminStats.mediaRows.length > 0 && (
+                          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                            <span className="text-sm text-white/70">
+                              {selectedMediaIds.length} selected
+                            </span>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const visibleIds = filteredMediaRows.map(mediaRowId);
+                                  const allSelected =
+                                    visibleIds.length > 0 &&
+                                    visibleIds.every((id) =>
+                                      selectedMediaIds.includes(id)
+                                    );
+                                  setSelectedMediaIds((current) =>
+                                    allSelected
+                                      ? current.filter(
+                                          (id) => !visibleIds.includes(id)
+                                        )
+                                      : Array.from(
+                                          new Set([...current, ...visibleIds])
+                                        )
+                                  );
+                                }}
+                                disabled={
+                                  filteredMediaRows.length === 0 ||
+                                  deletingMediaIds.length > 0
+                                }
+                                className="rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/20 disabled:opacity-50"
+                              >
+                                {filteredMediaRows.length > 0 &&
+                                filteredMediaRows.every((row) =>
+                                  selectedMediaIds.includes(mediaRowId(row))
+                                )
+                                  ? "Clear visible"
+                                  : "Select all visible"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  deleteMediaFiles(
+                                    (adminStats.mediaRows as AdminMediaRow[]).filter(
+                                      (row) =>
+                                        selectedMediaIds.includes(mediaRowId(row))
+                                    )
+                                  )
+                                }
+                                disabled={
+                                  selectedMediaIds.length === 0 ||
+                                  deletingMediaIds.length > 0
+                                }
+                                className="rounded-lg border border-rose-400/40 bg-rose-900/30 px-3 py-2 text-xs font-semibold text-rose-200 hover:bg-rose-800/50 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {deletingMediaIds.length > 0
+                                  ? `Deleting ${deletingMediaIds.length}…`
+                                  : `Delete selected (${selectedMediaIds.length})`}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                         {adminStats.mediaRows.length === 0 ? (
                           <div className="rounded-3xl border border-white/10 bg-white/10 p-12 text-center text-white/60">
                             No media uploaded yet.
@@ -2165,31 +2361,80 @@ export default function App() {
                               <table className="w-full text-left text-sm">
                                 <thead className="sticky top-0 bg-[#4b0c14] text-xs uppercase tracking-wider text-[#f5e6c8]">
                                   <tr>
+                                    <th className="w-12 px-4 py-3">
+                                      <input
+                                        type="checkbox"
+                                        aria-label="Select all visible media"
+                                        checked={
+                                          filteredMediaRows.length > 0 &&
+                                          filteredMediaRows.every((row) =>
+                                            selectedMediaIds.includes(
+                                              mediaRowId(row)
+                                            )
+                                          )
+                                        }
+                                        onChange={(event) => {
+                                          const visibleIds = filteredMediaRows.map(
+                                            mediaRowId
+                                          );
+                                          setSelectedMediaIds((current) =>
+                                            event.target.checked
+                                              ? Array.from(
+                                                  new Set([
+                                                    ...current,
+                                                    ...visibleIds,
+                                                  ])
+                                                )
+                                              : current.filter(
+                                                  (id) =>
+                                                    !visibleIds.includes(id)
+                                                )
+                                          );
+                                        }}
+                                        disabled={
+                                          filteredMediaRows.length === 0 ||
+                                          deletingMediaIds.length > 0
+                                        }
+                                        className="h-4 w-4 accent-[#d4af37]"
+                                      />
+                                    </th>
                                     <th className="px-4 py-3">File key</th>
                                     <th className="px-4 py-3">Guest</th>
                                     <th className="px-4 py-3">When</th>
+                                    <th className="px-4 py-3 text-right">Action</th>
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {adminStats.mediaRows
-                                    .filter((row) => {
-                                      const q = adminSearch.trim().toLowerCase();
-                                      if (!q) return true;
-                                      return (
-                                        row.key.toLowerCase().includes(q) ||
-                                        String(row.guest || "")
-                                          .toLowerCase()
-                                          .includes(q) ||
-                                        String(row.email || "")
-                                          .toLowerCase()
-                                          .includes(q)
-                                      );
-                                    })
-                                    .map((row, i) => (
+                                  {filteredMediaRows.map((row, i) => (
                                       <tr
                                         key={`${row.entryId}-${i}`}
                                         className="border-t border-white/5 bg-white/5 odd:bg-white/[0.07] hover:bg-white/10"
                                       >
+                                        <td className="w-12 px-4 py-3">
+                                          <input
+                                            type="checkbox"
+                                            aria-label={`Select ${row.key}`}
+                                            checked={selectedMediaIds.includes(
+                                              mediaRowId(row)
+                                            )}
+                                            onChange={(event) => {
+                                              const id = mediaRowId(row);
+                                              setSelectedMediaIds((current) =>
+                                                event.target.checked
+                                                  ? Array.from(
+                                                      new Set([...current, id])
+                                                    )
+                                                  : current.filter(
+                                                      (item) => item !== id
+                                                    )
+                                              );
+                                            }}
+                                            disabled={
+                                              deletingMediaIds.length > 0
+                                            }
+                                            className="h-4 w-4 accent-[#d4af37]"
+                                          />
+                                        </td>
                                         <td className="max-w-[280px] truncate px-4 py-3 font-mono text-xs text-white/80">
                                           {row.key}
                                         </td>
@@ -2207,6 +2452,20 @@ export default function App() {
                                         </td>
                                         <td className="whitespace-nowrap px-4 py-3 text-xs text-white/50">
                                           {formatEntryDate(row.createdAt)}
+                                        </td>
+                                        <td className="whitespace-nowrap px-4 py-3 text-right">
+                                          <button
+                                            type="button"
+                                            onClick={() => deleteMediaFiles([row])}
+                                            disabled={deletingMediaIds.length > 0}
+                                            className="rounded-lg border border-rose-400/40 bg-rose-900/30 px-3 py-1.5 text-xs font-semibold text-rose-200 transition hover:bg-rose-800/50 disabled:cursor-wait disabled:opacity-60"
+                                          >
+                                            {deletingMediaIds.includes(
+                                              mediaRowId(row)
+                                            )
+                                              ? "Deleting…"
+                                              : "Delete"}
+                                          </button>
                                         </td>
                                       </tr>
                                     ))}
