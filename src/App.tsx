@@ -2888,6 +2888,49 @@ ${notes
             )}
           </header>
 
+          {/* ── GUEST APPRECIATION BANNER ── */}
+          <section
+            aria-labelledby="guest-appreciation-title"
+            className="relative overflow-hidden rounded-3xl border border-[#d4af37]/45 bg-gradient-to-r from-[#4b0c14] via-[#6b0f1a] to-[#4b0c14] px-5 py-6 text-center shadow-xl shadow-black/30 md:px-10 md:py-7"
+          >
+            <div
+              className="pointer-events-none absolute -left-10 -top-12 h-36 w-36 rounded-full opacity-20 blur-3xl"
+              style={{ background: colors.champagne }}
+            />
+            <div
+              className="pointer-events-none absolute -bottom-16 -right-8 h-40 w-40 rounded-full opacity-25 blur-3xl"
+              style={{ background: colors.gold }}
+            />
+            <div className="relative mx-auto max-w-4xl">
+              <p className="text-2xl" aria-hidden>
+                🙏🏾 💛 🕊️
+              </p>
+              <p className="mt-2 text-xs font-semibold uppercase tracking-[0.26em] text-[#d4af37]">
+                To our cherished guests & well-wishers
+              </p>
+              <h2
+                id="guest-appreciation-title"
+                className="mt-2 text-2xl font-semibold text-[#f5e6c8] md:text-3xl"
+              >
+                Thank you for sharing in our joy
+              </h2>
+              <p className="mx-auto mt-3 max-w-3xl text-sm leading-relaxed text-white/85 md:text-base">
+                We are deeply grateful for your presence, prayers, kind wishes,
+                and every beautiful memory you shared with us. As you return to
+                your respective abodes, we wish you safe travels and journey
+                mercies. May you arrive safely and carry the joy of this
+                celebration with you.
+              </p>
+              <p className="mt-3 text-sm italic text-[#f5e6c8]/90">
+                With love and heartfelt appreciation,
+                <span className="ml-1 not-italic font-semibold text-[#d4af37]">
+                  Olanrewaju & Dolapo
+                </span>
+                <span aria-hidden> 💞</span>
+              </p>
+            </div>
+          </section>
+
           {/* ── UPLOAD PAGE ── */}
           {activePage === "upload" ? (
             <div className="grid gap-6 lg:grid-cols-[1fr,1.2fr]">
